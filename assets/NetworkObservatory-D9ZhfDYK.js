@@ -1,0 +1,1 @@
+import{m as e,r as t}from"./react-DS8WJb_4.js";var n=e();function r(){return(0,n.jsx)(t,{to:`/?view=theme-manage&section=network`,replace:!0})}export{r as NetworkObservatory};

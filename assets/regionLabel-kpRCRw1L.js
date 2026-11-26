@@ -1,0 +1,1 @@
+import{i as e}from"./useNodeCardModel-DU8PsPsf.js";var t=new Intl.DisplayNames([`zh-CN`],{type:`region`});function n(n){let r=(n==null?void 0:n.trim())??``,i=e(r);return i===`UN`?r||`未设置地区`:t.of(i)||r}export{n as t};
