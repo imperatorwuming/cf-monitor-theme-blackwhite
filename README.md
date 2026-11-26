@@ -2,6 +2,10 @@
 
 Blackwhite 是 [CF-Server-Monitor](https://github.com/huilang-me/CF-Server-Monitor) 的第三方主题，从 [Komari Blackwhite](https://github.com/imperatorwuming/komari-theme-blackwhite) 移植。包含晶透亮色和暗色、卡片和列表、搜索与筛选、收藏和保存视图、资产与续费统计、实例图表、VPS 对比、Blackwhite 工作室，以及可导出的实例报告。
 
+![Komari Blackwhite 原版封面](docs/preview.png)
+
+[查看 CF-Server-Monitor 版实际界面（演示数据）](docs/cfsm-preview.png)
+
 ## 安装主题
 
 以 CF-Server-Monitor **2.8.8 Beta2**（`1e4931f`）为适配基线。
