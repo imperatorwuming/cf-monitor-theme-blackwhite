@@ -1,0 +1,8 @@
+node_modules/
+release/
+.env*
+!.env.observatory.example
+network-observatory/data/
+__pycache__/
+*.pyc
+.DS_Store

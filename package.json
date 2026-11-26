@@ -1,0 +1,55 @@
+{
+  "name": "cf-monitor-theme-blackwhite",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Blackwhite — CF-Server-Monitor 的监控和资产管理主题",
+  "author": "imperatorwuming",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "package": "npm run build && node scripts/package-release.mjs",
+    "lint": "eslint src",
+    "typecheck": "tsc -b",
+    "test": "vitest run src",
+    "test:network-observatory": "node --test network-observatory/plugin/tests/*.node.cjs network-observatory/service/*.test.mjs && python3 -m unittest discover -s network-observatory/runner/tests",
+    "observatory": "node --env-file-if-exists=.env.observatory network-observatory/service/server.mjs"
+  },
+  "dependencies": {
+    "@fontsource-variable/inter": "^5.2.5",
+    "@tanstack/react-query": "^5.80.7",
+    "@xterm/xterm": "5.5.0",
+    "clsx": "^2.1.1",
+    "lucide-react": "^0.473.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-router-dom": "^7.18.7",
+    "uplot": "^1.6.32",
+    "uplot-react": "^1.2.4",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.0.6",
+    "@types/node": "^22.13.1",
+    "@types/react": "^19.0.8",
+    "@types/react-dom": "^19.0.3",
+    "@vitejs/plugin-react": "^6.0.2",
+    "eslint": "^9.39.4",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "globals": "^17.6.0",
+    "tailwindcss": "^4.0.6",
+    "typescript": "^5.7.3",
+    "typescript-eslint": "^8.61.0",
+    "vite": "^8.0.16",
+    "vitest": "^4.1.9"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/imperatorwuming/cf-monitor-theme-blackwhite.git"
+  },
+  "homepage": "https://github.com/imperatorwuming/cf-monitor-theme-blackwhite#readme",
+  "bugs": {
+    "url": "https://github.com/imperatorwuming/cf-monitor-theme-blackwhite/issues"
+  }
+}

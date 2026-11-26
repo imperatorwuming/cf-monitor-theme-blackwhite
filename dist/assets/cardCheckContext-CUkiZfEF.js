@@ -1,0 +1,1 @@
+import{a as e}from"./rolldown-runtime-Cyuzqnbw.js";import{g as t,m as n}from"./react-DS8WJb_4.js";var r=e(t(),1),i=n(),a=(0,r.createContext)({controller:null,register:()=>{}});function o({children:e}){let[t,n]=(0,r.useState)(null),o=(0,r.useMemo)(()=>({controller:t,register:n}),[t]);return(0,i.jsx)(a.Provider,{value:o,children:e})}export{a as n,o as t};
