@@ -686,7 +686,7 @@ function RoundModule({
             {rounds.map((r) => (
               <option key={r.id} value={r.id}>
                 {formatNetworkTime(r.plannedAt)} · {reportLabels[r.state]}
-                {r.detailAvailable ? "" : " · 明细已过期"}
+                {r.detailAvailable ? "" : " · 云端明细不可用"}
               </option>
             ))}
           </select>
@@ -737,7 +737,7 @@ function RoundModule({
       )}
       {round && !round.detailAvailable && !diagnostic && (
         <div className="report-empty">
-          本轮明细已超过七天保留期。完成度和每个目标的汇总保留九十天；原始样本无法恢复。
+          本轮云端明细已到期或超出存储预算。下方仍可查看已保存的目标汇总。
           <div className="report-table-scroll">
             <table>
               <thead>

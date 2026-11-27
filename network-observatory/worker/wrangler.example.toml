@@ -1,0 +1,31 @@
+name = "blackwhite-observatory"
+main = "index.mjs"
+compatibility_date = "2026-08-08"
+compatibility_flags = ["nodejs_compat"]
+workers_dev = true
+
+[vars]
+CFSM_ORIGIN = "https://your-monitor.your-account.workers.dev"
+# Include the theme's origin as well if it differs from CFSM_ORIGIN.
+BLACKWHITE_ALLOWED_ORIGINS = ""
+BLACKWHITE_IDLE_SYNC_SECONDS = "300"
+BLACKWHITE_MAX_PROBES = "60"
+BLACKWHITE_DAILY_JOBS = "400"
+BLACKWHITE_RESULT_STORAGE_MIB = "180"
+BLACKWHITE_RESULT_KIB = "768"
+BLACKWHITE_GLOBALPING = "false"
+BLACKWHITE_PAUSE_AUTOMATION = "false"
+
+[triggers]
+crons = ["* * * * *"]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "blackwhite-observatory"
+database_id = "00000000-0000-0000-0000-000000000000"
+migrations_dir = "migrations"
+
+# Optional same-account connection to the existing CF Worker.
+# [[services]]
+# binding = "CFSM"
+# service = "cf-server-monitor"

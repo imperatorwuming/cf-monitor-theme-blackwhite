@@ -15,7 +15,7 @@ npm ci
 npm run package
 ```
 
-在 CF-Server-Monitor 后台的第三方主题设置中粘贴 **[v1.0.0 主题目录](https://github.com/imperatorwuming/cf-monitor-theme-blackwhite/tree/v1.0.0/dist)**。Worker 通过这个目录读取页面和静态资源。离线部署和自定义分发可在 [GitHub Release](https://github.com/imperatorwuming/cf-monitor-theme-blackwhite/releases/tag/v1.0.0) 下载主题 ZIP 和校验文件。
+在 CF-Server-Monitor 后台的第三方主题设置中粘贴 **[v1.1.0 主题目录](https://github.com/imperatorwuming/cf-monitor-theme-blackwhite/tree/v1.1.0/dist)**。Worker 通过这个目录读取页面和静态资源。离线部署和自定义分发可在 [GitHub Release](https://github.com/imperatorwuming/cf-monitor-theme-blackwhite/releases/tag/v1.1.0) 下载主题 ZIP 和校验文件。
 
 本地构建需要 Node.js 22.13 或以上版本和 `zip`。构建结果写入 `dist/`，发布 ZIP 写入 `release/`。自行托管主题时，将 `index.html` 和 `assets/` 放入公开 GitHub 目录，在后台填写对应的 `tree/<版本>/dist` 地址。
 
@@ -35,7 +35,7 @@ npm run package
 
 配套服务部署后会归档 **真实的上下行累计计数器**，保留最近 45 天。CF 自带历史接口没有开放这些字段，归档从启用时开始。资源图继续使用 CF 自带历史，不受归档启用日期影响。
 
-完整网络功能和流量归档的启动方式见 [网络观测部署](network-observatory/README.md)。
+网络观测可以部署到 **Cloudflare Workers Free + D1**。控制端不需要额外 VPS，实际测量仍由各节点探测器执行。部署说明和原 VPS 模式见 [网络观测部署](network-observatory/README.md)。
 
 ## 本地开发与验证
 
@@ -45,6 +45,7 @@ BLACKWHITE_DEV_UPSTREAM=http://127.0.0.1:8788 npm run dev
 npm test
 npm run lint
 npm run test:network-observatory
+npm run test:serverless
 ```
 
 `CFSM_DEV_UPSTREAM` 指向本地 CF Worker，`BLACKWHITE_DEV_UPSTREAM` 指向本地网络观测服务。这两个变量也适用于 `npm run preview`。构建产物仅包含主题 HTML 与资源。

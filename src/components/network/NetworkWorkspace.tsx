@@ -39,7 +39,7 @@ export function NetworkWorkspace({
     queryKey: ["measurement-points"],
     queryFn: nativeCatalog,
     enabled: admin && !!capability.data,
-    refetchInterval: 30000,
+    refetchInterval: (query) => query.state.data?.mode === "serverless-free" ? 120000 : 30000,
     retry: false,
   });
   const [message, setMessage] = useState(""),
@@ -77,7 +77,7 @@ export function NetworkWorkspace({
           <strong>
             {name} ·{" "}
             {w
-              ? Date.now() - w.seenAt < 90000
+              ? (w.online ?? Date.now() - w.seenAt < 90000)
                 ? "探测器在线"
                 : "探测器离线"
               : "等待探测器接入"}

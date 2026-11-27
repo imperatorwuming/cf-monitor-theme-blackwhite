@@ -69,6 +69,27 @@ class AgentValidationTests(unittest.TestCase):
             self.assertIn('CapabilityBoundingSet=CAP_NET_RAW', unit)
             self.assertNotIn('CAP_NET_ADMIN', unit)
 
+    def test_serverless_daemon_negotiates_one_idle_sync_instead_of_poll_and_heartbeat(self):
+        import threading
+        stop = threading.Event()
+        config = {"nodeUuid": TASK["taskId"], "role": "node"}
+        waits = []
+
+        def end_after_sync(seconds):
+            waits.append(seconds)
+            stop.set()
+
+        with patch.object(AGENT, "load_config", return_value=config), patch.object(AGENT, "heartbeat") as old_heartbeat, \
+                patch.object(AGENT, "api_request", side_effect=[{"ok": True, "sync": True, "minSyncSeconds": 300},
+                    {"task": None, "activeJobIds": [], "nextSyncSeconds": 300}]) as api, \
+                patch.object(AGENT, "collect_helper_results"), patch.object(AGENT, "flush_results"), \
+                patch.object(AGENT, "tcpquality_tasks", return_value=None), patch.object(AGENT, "heartbeat_payload", return_value={}), \
+                patch.object(AGENT.random, "uniform", return_value=0), patch.object(stop, "wait", side_effect=end_after_sync):
+            AGENT.run_daemon("unused", stop)
+        old_heartbeat.assert_not_called()
+        self.assertEqual([call.args[1] for call in api.call_args_list], ["verify", "sync"])
+        self.assertEqual(waits, [300])
+
     def test_tcp_quality_preflight_error_is_a_valid_zero_sample_failure(self):
         config = {"serverUrl": "https://panel.example.net", "nodeUuid": TASK["taskId"], "role": "node"}
         task = {"id": TASK["taskId"], "operation": "tcp-quality", "target": "example.net", "options": {}}

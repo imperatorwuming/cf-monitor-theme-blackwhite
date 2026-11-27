@@ -22,7 +22,7 @@ export function MeasurementPointsPanel({
   const query = useQuery({
     queryKey: ["measurement-points"],
     queryFn: nativeCatalog,
-    refetchInterval: 15000,
+    refetchInterval: (query) => query.state.data?.mode === "serverless-free" ? 120000 : 15000,
     retry: false,
   });
   const cache = useQueryClient();
@@ -80,7 +80,7 @@ export function MeasurementPointsPanel({
   const registered = data.registeredNodes.includes(selected);
   const node = data.inventory.find(n => n.uuid === selected);
   const worker = data.workers["node:" + selected];
-  const online = worker && Date.now() - worker.seenAt < 90000;
+  const online = worker && (worker.online ?? Date.now() - worker.seenAt < 90000);
   const maintenanceCommand = installCommand(selected, base, { upgrade: registered, profile: registered ? "preserve" : profile === "preserve" ? "auto" : profile });
   async function issue() {
     await act(async () => {

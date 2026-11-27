@@ -6,3 +6,6 @@ network-observatory/data/
 __pycache__/
 *.pyc
 .DS_Store
+.wrangler/
+network-observatory/worker/wrangler.toml
+network-observatory/worker/.dev.vars*

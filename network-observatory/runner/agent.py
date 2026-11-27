@@ -9,6 +9,7 @@ import json
 import os
 import pwd
 import re
+import random
 import shutil
 import signal
 import socket
@@ -34,7 +35,7 @@ CONFIG_PATH = Path("/etc/blackwhite-network-observatory/agent.json")
 SERVICE_NAME = "blackwhite-network-observatory-agent.service"
 SERVICE_DIR = Path("/usr/local/libexec/blackwhite-network-observatory")
 INIT_DIR = Path("/etc/init.d")
-RUNNER_VERSION = "1.0.0"
+RUNNER_VERSION = "1.1.0"
 RUN_INSTANCE = uuid.uuid4().hex
 POLL_SECONDS = 15
 REQUEST_TIMEOUT = 25
@@ -88,6 +89,8 @@ def validate_config(config):
 
 
 def api_request(config, suffix, method="GET", body=None):
+    if suffix == "result":
+        body = {"instanceId": RUN_INSTANCE, **(body or {})}
     data = None if body is None else json.dumps(body, separators=(",", ":")).encode("utf-8")
     request = urllib.request.Request(
         f"{config['serverUrl']}/api/blackwhite-network-observatory/v2/workers/{config.get('role', 'node')}/{config['nodeUuid']}/{suffix}",
@@ -243,41 +246,52 @@ def traffic_cycle():
     return cycle(day, date.today()) if day else None
 
 
+def heartbeat_payload(config, helper_tasks, pending=()):
+    features = ["report-v3", "latency-samples", "full-mtr", "speed-intervals", "http-speed", "tcp-quality", "public-speed"]
+    if helper_tasks is not None:
+        features.append("tcpquality-full")
+        try:
+            if "nodequality-full" in tcpquality_request("capabilities").get("operations", []):
+                features.append("nodequality-full")
+        except (OSError, ValueError, TypeError):
+            pass  # Older helpers only support TcpQuality.
+    active = native.active_tasks() + [t["id"] for t in (helper_tasks or [])] + list(pending)
+    payload = {"version": RUNNER_VERSION, "instanceId": RUN_INSTANCE,
+               "tools": [tool for tool in ("curl", "nexttrace", "traceroute", "mtr", "iperf3", "openssl", "nping") if shutil.which(tool)],
+               "authScheme": native.auth_scheme(), "features": features, "activeJobIds": list(dict.fromkeys(active))}
+    if config.get("role", "node") == "node":
+        missing = native.missing_diagnostic_tools()
+        payload["missingDiagnosticTools"] = missing
+        payload["trafficReset"] = traffic_cycle()
+        if not missing:
+            features.extend(native.HOME_DIAGNOSTIC_OPERATIONS)
+    return payload
+
+
+def reconcile_response(response, helper_tasks):
+    if "activeJobIds" not in response:
+        return
+    allowed = set(response["activeJobIds"])
+    global _helper_allowed
+    with _helper_allowed_lock:
+        _helper_allowed = allowed
+    native.reconcile_tasks(allowed)
+    for task in helper_tasks or []:
+        if task["state"] == "running" and task["id"] not in allowed:
+            try:
+                tcpquality_request("cancel", id=task["id"], nodeUuid=task["nodeUuid"])
+            except (OSError, ValueError):
+                pass
+
+
 def heartbeat(config, stop):
     # A long route/throughput test must not make a healthy worker appear offline.
     while not stop.is_set():
         try:
             helper_tasks = tcpquality_tasks(config)
-            features = ["report-v3", "latency-samples", "full-mtr", "speed-intervals", "http-speed", "tcp-quality", "public-speed"]
-            if helper_tasks is not None:
-                features.append("tcpquality-full")
-                try:
-                    if "nodequality-full" in tcpquality_request("capabilities").get("operations", []):
-                        features.append("nodequality-full")
-                except (OSError, ValueError, TypeError):
-                    pass  # Older helpers only support TcpQuality.
-            active = native.active_tasks() + [t["id"] for t in (helper_tasks or [])]
-            observations = {}
-            if config.get("role", "node") == "node":
-                missing = native.missing_diagnostic_tools()
-                observations["missingDiagnosticTools"] = missing
-                if not missing:
-                    features.extend(native.HOME_DIAGNOSTIC_OPERATIONS)
-                observations["trafficReset"] = traffic_cycle()
-            response = api_request(config, "heartbeat", method="POST", body={"version": RUNNER_VERSION, "instanceId": RUN_INSTANCE, "tools": [x for x in ("curl", "nexttrace", "traceroute", "mtr", "iperf3", "openssl", "nping") if shutil.which(x)], "authScheme": native.auth_scheme(), "features": features, "activeJobIds": list(dict.fromkeys(active)), **observations})
-            if "activeJobIds" in response:
-                allowed = set(response["activeJobIds"])
-                global _helper_allowed
-                with _helper_allowed_lock:
-                    _helper_allowed = allowed
-                native.reconcile_tasks(allowed)
-                for task in helper_tasks or []:
-                    if task["state"] == "running" and task["id"] not in allowed:
-                        try:
-                            tcpquality_request("cancel", id=task["id"], nodeUuid=config["nodeUuid"])
-                        except (OSError, ValueError):
-                            pass
-        except (urllib.error.URLError, OSError, ValueError):
+            response = api_request(config, "heartbeat", method="POST", body=heartbeat_payload(config, helper_tasks))
+            reconcile_response(response, helper_tasks)
+        except (urllib.error.URLError, OSError, ValueError, TypeError):
             pass  # Polling reports connectivity errors; older plugins lack heartbeat.
         stop.wait(30)
 
@@ -521,13 +535,19 @@ def flush_results(config):
             remove_result(file)
             continue
         try:
-            api_request(config, "result", method="POST", body={"id": payload["id"], "data": payload["data"]})
+            body = {"id": payload["id"], "data": payload["data"]}
+            if config.get("serverless"):
+                body["outbox"] = True
+            receipt = api_request(config, "result", method="POST", body=body)
         except urllib.error.HTTPError as error:
             if error.code == 409:
                 retain_orphan(file) if full else remove_result(file)
                 continue
             raise
-        remove_result(file)
+        if isinstance(receipt, dict) and receipt.get("detailStored") is False:
+            retain_orphan(file)
+        else:
+            remove_result(file)
         if full:
             try:
                 tcpquality_request("ack", id=payload["id"], nodeUuid=config["nodeUuid"], revision=payload.get("helperRevision"))
@@ -612,7 +632,11 @@ def _native_task(config, task, listeners):
     try:
         if task.get("operation") == "listen":
             options = task.get("options") or {}
-            listener = native.Listener(options.get("port"), options.get("password"), options.get("peerScheme"))
+            if config.get("serverless"):
+                lifetime = min(600, max(240, int(options.get("lifetime", 240))))
+                listener = native.Listener(options.get("port"), options.get("password"), options.get("peerScheme"), lifetime=lifetime)
+            else:
+                listener = native.Listener(options.get("port"), options.get("password"), options.get("peerScheme"))
             listeners[task_id] = listener
             data = {"state": "ready", "publicKey": listener.public_key, "scheme": listener.scheme}
         else:
@@ -625,9 +649,12 @@ def _native_task(config, task, listeners):
     # A failed result upload is retried; never repeat a bandwidth measurement.
     for attempt in range(3):
         try:
-            api_request(config, "result", method="POST", body={"id": task_id, "data": data})
+            receipt = api_request(config, "result", method="POST", body={"id": task_id, "data": data})
             if cached:
-                remove_result(cached)
+                if isinstance(receipt, dict) and receipt.get("detailStored") is False:
+                    retain_orphan(cached)
+                else:
+                    remove_result(cached)
             return
         except urllib.error.HTTPError as error:
             if error.code in {401, 409}:
@@ -642,12 +669,91 @@ def _native_task(config, task, listeners):
         time.sleep(2)
 
 
+def serverless_daemon(config, stop, idle_seconds):
+    pending = {}
+    listeners = {}
+    retry_seconds = 30
+    with ThreadPoolExecutor(max_workers=1, thread_name_prefix="blackwhite-measurement") as pool:
+        try:
+            while not stop.is_set():
+                wait_seconds = idle_seconds
+                try:
+                    for task_id, future in list(pending.items()):
+                        if future.done():
+                            del pending[task_id]
+                            try:
+                                future.result()
+                            except (urllib.error.URLError, OSError, ValueError, KeyError, TypeError) as error:
+                                print(f"结果等待重试：{error}", file=sys.stderr, flush=True)
+                    collect_helper_results(config)
+                    flush_results(config)
+                    helper_tasks = tcpquality_tasks(config)
+                    running_helper = any(task.get("state") == "running" for task in helper_tasks or [])
+                    payload = heartbeat_payload(config, helper_tasks, pending)
+                    payload.update(allowTask=not pending and not running_helper, listeners=list(listeners))
+                    response = api_request(config, "sync", method="POST", body=payload)
+                    reconcile_response(response, helper_tasks)
+                    for key, listener in list(listeners.items()):
+                        if key not in response.get("listeners", []) or time.monotonic() >= listener.expires or listener.process.poll() is not None:
+                            listener.close()
+                            del listeners[key]
+                    task = response.get("task")
+                    if task:
+                        task_id = task["id"]
+                        if task["operation"] in {"tcpquality-full", "nodequality-full"}:
+                            intent = outbox_dir(config) / (task_id + ".start.json")
+                            if not intent.exists():
+                                persist_helper_start(config, task)
+                            flush_helper_starts(config)
+                        elif task["operation"] == "listen":
+                            native_task(config, task, listeners)
+                        elif task_id not in pending:
+                            pending[task_id] = pool.submit(native_task, config, task, {})
+                    if running_helper or pending or task or listeners:
+                        wait_seconds = 30
+                    else:
+                        wait_seconds = max(idle_seconds, min(1800, int(response.get("nextSyncSeconds", idle_seconds))))
+                    retry_seconds = 30
+                except (urllib.error.URLError, OSError, ValueError, KeyError, TypeError) as error:
+                    wait_seconds = max(retry_seconds, idle_seconds if getattr(error, "code", None) in {401, 429, 503} else 30)
+                    retry_seconds = min(1800, retry_seconds * 2)
+                    print(f"网络观测暂不可用：{error}", file=sys.stderr, flush=True)
+                stop.wait(wait_seconds + random.uniform(0, min(20, wait_seconds * 0.1)))
+        finally:
+            native.reconcile_tasks(set())
+            for listener in listeners.values():
+                listener.close()
+            close_outbox_scans()
+
+
+def negotiate_protocol(config, stop):
+    delay = 15
+    while not stop.is_set():
+        try:
+            return api_request(config, "verify", method="POST", body={"version": RUNNER_VERSION})
+        except urllib.error.HTTPError as error:
+            if error.code == 404:
+                return {}  # Deployment predates the verify route.
+            print(f"网络观测握手失败：{error}", file=sys.stderr, flush=True)
+        except (urllib.error.URLError, OSError, ValueError) as error:
+            print(f"网络观测握手失败：{error}", file=sys.stderr, flush=True)
+        stop.wait(delay + random.uniform(0, 5))
+        delay = min(300, delay * 2)
+    return {}
+
+
 def run_daemon(config_path, stop=None):
     config = load_config(config_path)
     global _helper_allowed
     with _helper_allowed_lock:
         _helper_allowed = None
     stop = stop if stop is not None else threading.Event()
+    protocol = negotiate_protocol(config, stop)
+    if stop.is_set():
+        return
+    if protocol.get("sync") is True:
+        idle = protocol.get("minSyncSeconds", 300)
+        return serverless_daemon({**config, "serverless": True}, stop, max(300, min(1800, int(idle))))
     worker = threading.Thread(target=heartbeat, args=(config, stop), daemon=True)
     worker.start()
     listeners = {}

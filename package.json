@@ -1,7 +1,7 @@
 {
   "name": "cf-monitor-theme-blackwhite",
   "private": true,
-  "version": "1.0.0",
+  "version": "1.1.0",
   "type": "module",
   "description": "Blackwhite — CF-Server-Monitor 的监控和资产管理主题",
   "author": "imperatorwuming",
@@ -14,7 +14,9 @@
     "typecheck": "tsc -b",
     "test": "vitest run src",
     "test:network-observatory": "node --test network-observatory/plugin/tests/*.node.cjs network-observatory/service/*.test.mjs && python3 -m unittest discover -s network-observatory/runner/tests",
-    "observatory": "node --env-file-if-exists=.env.observatory network-observatory/service/server.mjs"
+    "observatory": "node --env-file-if-exists=.env.observatory network-observatory/service/server.mjs",
+    "test:serverless": "node --test network-observatory/worker/*.test.mjs",
+    "observatory:cloudflare:deploy": "node scripts/deploy-observatory.mjs"
   },
   "dependencies": {
     "@fontsource-variable/inter": "^5.2.5",
@@ -42,7 +44,8 @@
     "typescript": "^5.7.3",
     "typescript-eslint": "^8.61.0",
     "vite": "^8.0.16",
-    "vitest": "^4.1.9"
+    "vitest": "^4.1.9",
+    "wrangler": "4.120.0"
   },
   "repository": {
     "type": "git",

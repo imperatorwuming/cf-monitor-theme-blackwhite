@@ -133,4 +133,4 @@ function homeDiagnosticsStore(root, isMissingFile) {
   }
   return { observe, summary };
 }
-module.exports = { DIAGNOSTICS, DIAGNOSTIC_TOOLS, SECTIONS, validateDiagnostics, resetCycle, homeDiagnosticsStore };
+module.exports = { DIAGNOSTICS, DIAGNOSTIC_TOOLS, SECTIONS, validateDiagnostics, resetCycle, monitorResetCycle, homeDiagnosticsStore };

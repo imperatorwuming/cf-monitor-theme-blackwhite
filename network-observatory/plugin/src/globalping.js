@@ -1,9 +1,9 @@
 const BASE = "https://api.globalping.io/v1";
-async function request(suffix, body) {
+async function request(suffix, body, fetcher = fetch) {
   const controller = new AbortController(),
     timer = setTimeout(() => controller.abort(), 7000);
   try {
-    const response = await fetch(BASE + suffix, {
+    const response = await fetcher(BASE + suffix, {
       method: body ? "POST" : "GET",
       headers: {
         "content-type": "application/json",
@@ -88,7 +88,7 @@ function normalize(job, payload) {
     };
   });
 }
-function create(job) {
+function create(job, fetcher) {
   return request("/measurements", {
     type: job.options.fullMtr ? "mtr" : "traceroute",
     target: job.target,
@@ -103,6 +103,6 @@ function create(job) {
         ? { ipVersion: Number(job.options.family) }
         : {}),
     },
-  });
+  }, fetcher);
 }
 module.exports = { request, create, normalize };

@@ -355,6 +355,18 @@ const capabilitiesSchema = z.object({
   retention: z.object({ detailDays: z.number(), summaryDays: z.number() }),
 });
 const catalogSchema = capabilitiesSchema.extend({
+  quota: z.object({
+    mode: z.enum(["normal", "reduced", "paused"]),
+    estimatedIdleRequestsPerDay: z.number(),
+    jobs: z.number(),
+    jobLimit: z.number(),
+    storedBytes: z.number(),
+    storageLimitBytes: z.number(),
+    workers: z.number(),
+    maxWorkers: z.number(),
+    trafficIntervalMinutes: z.number(),
+    nextResetAt: z.number(),
+  }).optional(),
   catalogVersion: z.string(),
   endpoints: z.array(endpointSchema),
   presets: z.array(
@@ -413,6 +425,7 @@ const catalogSchema = capabilitiesSchema.extend({
 const previewSchema = z.object({
   suite: suiteSchema,
   exceedsCapacity: z.boolean(),
+  totalNodes: z.number().optional(),
   nodes: z.array(
     z.object({
       uuid: z.string(),
@@ -473,9 +486,10 @@ async function request(
   try {
     data = JSON.parse(raw);
   } catch {
-    throw new Error(
-      `网络报告 API 返回 HTTP ${res.status}；请确认插件版本和登录状态`,
-    );
+    if (res.headers.get("content-type")?.includes("text/html")) {
+      throw new Error("网络观测地址返回了网页。请检查外观设置中的 blackwhiteObservatory 地址或同域反代。");
+    }
+    throw new Error(`网络报告 API 返回 HTTP ${res.status}，响应格式无效`);
   }
   if (!res.ok)
     throw new Error(

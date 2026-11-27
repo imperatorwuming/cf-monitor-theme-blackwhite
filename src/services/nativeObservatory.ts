@@ -2,6 +2,7 @@ import { observatoryFetch } from "@/services/cfTransport";
 import { z } from "zod";
 const worker = z.object({
   seenAt: z.number(),
+  online: z.boolean().optional(),
   version: z.string(),
   tools: z.array(z.string()),
   authScheme: z.string(),
@@ -9,6 +10,7 @@ const worker = z.object({
   missingDiagnosticTools: z.array(z.string()).optional(),
 });
 const catalog = z.object({
+  mode: z.literal("serverless-free").optional(),
   runnerRelease: z.object({ version: z.string(), protocol: z.number(), releaseTag: z.string(), archive: z.string() }).optional(),
   updatePolicies: z.record(z.string(), z.object({ enabled: z.boolean() })).default({}),
   updates: z.record(z.string(), z.object({ state: z.string(), message: z.string(), at: z.string() })).default({}),

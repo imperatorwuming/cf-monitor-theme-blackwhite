@@ -1,7 +1,7 @@
 const crypto = require("crypto");
 const M = require("./native-model.js");
 const { UUID } = require("./model.js");
-const { MODULES } = require("./round-store.js");
+const { MODULES } = require("./report-shape.js");
 const { DIAGNOSTICS } = require("./home-diagnostics.js");
 const { VERSION, ENDPOINTS, PRESETS } = require("./report-catalog.js");
 const CITIES = ["北京", "上海", "广州"];

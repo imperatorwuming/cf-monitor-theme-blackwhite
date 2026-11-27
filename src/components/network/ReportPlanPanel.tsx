@@ -36,7 +36,7 @@ export function ReportPlanPanel({
   const query = useQuery({
       queryKey: ["report-catalog"],
       queryFn: reportCatalog,
-      refetchInterval: 30000,
+      refetchInterval: (query) => query.state.data?.quota ? 120000 : 30000,
     }),
     client = useQueryClient();
   const [draft, setDraft] = useState<ReportDraft | null>(null),
@@ -145,8 +145,16 @@ export function ReportPlanPanel({
         icon={Layers3}
         title="网络报告方案"
         description="选择模块、执行时间和 VPS；保存和执行操作直接写入网络插件。探测器与目标端点在网络观测中统一管理。"
-
       />
+      {catalog.quota && (
+        <div className="report-coverage-preview" role="status">
+          <strong>Cloudflare 免费模式 · {{ normal: "正常", reduced: "降低频率", paused: "暂停自动派单" }[catalog.quota.mode]}</strong>
+          <p>探测器 {catalog.quota.workers}/{catalog.quota.maxWorkers} · 今日派单 {catalog.quota.jobs}/{catalog.quota.jobLimit}
+            {" · "}流量每 {catalog.quota.trafficIntervalMinutes} 分钟采样</p>
+          <p>空闲同步估算 {catalog.quota.estimatedIdleRequestsPerDay.toLocaleString()} 次/天 · 明细 {(catalog.quota.storedBytes / 1048576).toFixed(1)}
+            /{Math.round(catalog.quota.storageLimitBytes / 1048576)} MiB。账号实际配额以 Cloudflare 后台为准。</p>
+        </div>
+      )}
       <section className="report-saved-plans" aria-label="已保存方案">
         <div className="report-saved-plans-heading"><div><strong>已保存方案</strong><small>{catalog.suites.length} 个方案 · 选择卡片编辑详情</small></div>
           <button type="button" onClick={() => { setDraft({ name: "网络报告", clients: initialNodes.length ? initialNodes : uuid ? [uuid] : [], groups: [], inherit: true, enabled: true, trafficAccepted: false, modules: [presetModule("international-basic")], revision: catalog.revision }); setStep(1); setPreview(null); setDailyInputs({}); setVpsSearch(""); }}>新建方案</button>
@@ -754,6 +762,9 @@ export function ReportPlanPanel({
           </button>
           {preview && (
             <section className="report-coverage-preview">
+              {preview.totalNodes !== undefined && preview.totalNodes > preview.nodes.length && (
+                <p>显示前 {preview.nodes.length} 台 VPS 的容量估算，共选 {preview.totalNodes} 台。</p>
+              )}
               {preview.exceedsCapacity && (
                 <p role="alert">
                   累计频率超过采集容量，保存前请减少目标或降低频率。
